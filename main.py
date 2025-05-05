@@ -10,7 +10,6 @@ try:
 except locale.Error:
     locale.setlocale(locale.LC_TIME, '')
 
-
 app = Flask(__name__)
 
 DB_CONFIG = {
@@ -101,6 +100,7 @@ def dashboard():
         </div>
 
         <div class="chart-row">
+            <div id="leadsContainer" style="margin-top:40px; text-align:left; padding:20px;"></div>
             <div class="chart-container">
                 <h2>Leads Activos por Usuario ({anio_actual})
                     <select onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio=' + this.value">
@@ -130,57 +130,86 @@ def dashboard():
         </div>
 
         <script>
-            const chartOptions = {{
-                plugins: {{
-                    legend: {{ labels: {{ color: 'white' }} }},
-                    datalabels: {{
+            const chartOptions = {
+                plugins: {
+                    legend: { labels: { color: 'white' } },
+                    datalabels: {
                         color: 'white',
-                        font: {{ weight: 'bold' }},
+                        font: { weight: 'bold' },
                         formatter: (value, context) => context.chart.data.labels[context.dataIndex],
                         align: 'center',
                         anchor: 'center'
-                    }}
-                }}
-            }};
+                    }
+                }
+            };
 
             Chart.register(ChartDataLabels);
 
-            new Chart(document.getElementById('chartAnual').getContext('2d'), {{
+            const chartAnual = new Chart(document.getElementById('chartAnual').getContext('2d'), {
                 type: 'pie',
-                data: {{ labels: {labels_anual}, datasets: [{{ data: {values_anual}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
+                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
                 options: chartOptions
-            }});
+            });
 
-            new Chart(document.getElementById('chartMes').getContext('2d'), {{
+            new Chart(document.getElementById('chartMes').getContext('2d'), {
                 type: 'pie',
-                data: {{ labels: {labels_mensual}, datasets: [{{ data: {values_mensual}, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
+                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
                 options: chartOptions
-            }});
+            });
 
-            new Chart(document.getElementById('chartSemana').getContext('2d'), {{
+            new Chart(document.getElementById('chartSemana').getContext('2d'), {
                 type: 'doughnut',
-                data: {{ labels: {labels_semanal}, datasets: [{{ data: {values_semanal}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
+                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
                 options: chartOptions
-            }});
+            });
 
-            let segundos = {segundos_restantes};
+            document.getElementById('chartAnual').onclick = function(evt) {
+                const points = chartAnual.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (points.length) {
+                    const index = points[0].index;
+                    const label = chartAnual.data.labels[index].split(' (')[0];
+                    fetch('/leads?user=' + encodeURIComponent(label))
+                        .then(response => response.text())
+                        .then(html => {
+                            document.getElementById('leadsContainer').innerHTML = "<h3>Leads de " + label + "</h3>" + html;
+                        });
+                }
+            };
+
+            let segundos = %s;
             const cuenta = document.getElementById('cuenta');
-            setInterval(() => {{
-                if (segundos > 0) {{
+            setInterval(() => {
+                if (segundos > 0) {
                     let hrs = String(Math.floor(segundos / 3600)).padStart(2, '0');
                     let mins = String(Math.floor((segundos % 3600) / 60)).padStart(2, '0');
                     let secs = String(segundos % 60).padStart(2, '0');
-                    cuenta.innerText = `${{hrs}}:${{mins}}:${{secs}}`;
+                    cuenta.innerText = `${hrs}:${mins}:${secs}`;
                     segundos--;
-                }} else {{ cuenta.innerText = "00:00:00"; }}
-            }}, 1000);
+                } else { cuenta.innerText = "00:00:00"; }
+            }, 1000);
         </script>
     </body>
     </html>
-    '''
+    ''' % (labels_anual, values_anual, labels_mensual, values_mensual, labels_semanal, values_semanal, segundos_restantes)
+
+@app.route('/leads')
+def get_leads():
+    user = request.args.get('user')
+    query = """
+        SELECT l.name, l.contact_name, l.email_from
+        FROM crm_lead l
+        LEFT JOIN res_users u ON u.id = l.user_id
+        LEFT JOIN res_partner p ON p.id = u.partner_id
+        WHERE COALESCE(p.name, 'Sin asignar') = %s AND l.active = TRUE
+    """
+    rows = fetch_data(query, (user,))
+    html = "<ul>"
+    for name, contact, email in rows:
+        html += f"<li><strong>{name}</strong> — {contact or 'Sin contacto'} — {email or 'Sin email'}</li>"
+    html += "</ul>" if rows else "<p>No hay leads disponibles.</p>"
+    return html
 
 if __name__ == '__main__':
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
