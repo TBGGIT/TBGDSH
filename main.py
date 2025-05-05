@@ -34,9 +34,10 @@ def dashboard():
     mes_actual = int(request.args.get('mes', now.month))
     semana_actual = int(request.args.get('semana', now.isocalendar()[1]))
     anio_actual = int(request.args.get('anio', now.year))
+    agrupador = request.args.get('agrupador', 'usuario')
+
     from babel.dates import format_date
     nombre_mes = format_date(now, "LLLL", locale='es')
-
     fecha_actual = now.strftime(f"%Y - {nombre_mes} - %d")
 
     dias_hasta_sabado = (5 - now.weekday()) % 7
@@ -47,25 +48,43 @@ def dashboard():
     options_semana = ''.join([f'<option value="{i}" {"selected" if i == semana_actual else ""}>{i}</option>' for i in range(1, 54)])
     options_anio = ''.join([f'<option value="{y}" {"selected" if y == anio_actual else ""}>{y}</option>' for y in range(now.year - 5, now.year + 1)])
 
+    options_agrupador = f'''
+        <select id="selectAgrupador" onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio={anio_actual}&agrupador=' + this.value">
+            <option value="usuario" {'selected' if agrupador == 'usuario' else ''}>Por Usuario</option>
+            <option value="etapa" {'selected' if agrupador == 'etapa' else ''}>Por Etapa</option>
+        </select>'''
+
     def build_label_with_priorities(periodo_value, periodo_expr):
-        query = f"""
-            SELECT COALESCE(p.name, 'Sin asignar') AS usuario,
-                   COUNT(*) AS total,
-                   COUNT(*) FILTER (WHERE l.x_priority IS NULL OR l.x_priority = '0') AS sin,
-                   COUNT(*) FILTER (WHERE l.x_priority = '1') AS bajas,
-                   COUNT(*) FILTER (WHERE l.x_priority = '2') AS medias,
-                   COUNT(*) FILTER (WHERE l.x_priority = '3') AS altas
-            FROM crm_lead l
-            LEFT JOIN res_users u ON u.id = l.user_id
-            LEFT JOIN res_partner p ON p.id = u.partner_id
-            WHERE l.active = TRUE AND {periodo_expr} = %s
-            GROUP BY usuario
-        """
+        if agrupador == 'usuario':
+            query = f"""
+                SELECT COALESCE(p.name, 'Sin asignar') AS grupo,
+                       COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE l.x_priority IS NULL OR l.x_priority = '0') AS sin,
+                       COUNT(*) FILTER (WHERE l.x_priority = '1') AS bajas,
+                       COUNT(*) FILTER (WHERE l.x_priority = '2') AS medias,
+                       COUNT(*) FILTER (WHERE l.x_priority = '3') AS altas
+                FROM crm_lead l
+                LEFT JOIN res_users u ON u.id = l.user_id
+                LEFT JOIN res_partner p ON p.id = u.partner_id
+                WHERE l.active = TRUE AND {periodo_expr} = %s
+                GROUP BY grupo
+            """
+        else:
+            query = f"""
+                SELECT s.name AS grupo,
+                       COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE l.x_priority IS NULL OR l.x_priority = '0') AS sin,
+                       COUNT(*) FILTER (WHERE l.x_priority = '1') AS bajas,
+                       COUNT(*) FILTER (WHERE l.x_priority = '2') AS medias,
+                       COUNT(*) FILTER (WHERE l.x_priority = '3') AS altas
+                FROM crm_lead l
+                LEFT JOIN crm_stage s ON s.id = l.stage_id
+                WHERE l.active = TRUE AND l.stage_id BETWEEN 1 AND 8 AND {periodo_expr} = %s
+                GROUP BY grupo
+            """
+
         rows = fetch_data(query, (periodo_value,))
-        labels = [
-            f"{r[0]} ({r[1]}) ({r[2]}s + {r[3]}L + {r[4]}M + {r[5]}H)"
-            for r in rows
-        ]
+        labels = [f"{r[0]} ({r[1]}) ({r[2]}s + {r[3]}L + {r[4]}M + {r[5]}H)" for r in rows]
         values = [r[1] for r in rows]
         return labels, values
 
@@ -205,6 +224,7 @@ def get_leads():
     user = request.args.get('user')
     filtro = request.args.get('filtro')
     valor = request.args.get('valor')
+    agrupador = request.args.get('agrupador', 'usuario')
 
     filtro_sql = {
         'mes': "DATE_PART('month', l.create_date)",
@@ -215,11 +235,16 @@ def get_leads():
     if not filtro_sql:
         return "<p>Filtro inválido.</p>"
 
+    if agrupador == 'usuario':
+        where_clause = "COALESCE(p.name, 'Sin asignar') = %s"
+    else:
+        where_clause = "s.name = %s AND l.stage_id BETWEEN 1 AND 8"
+
     query = f"""
         SELECT l.name, l.partner_name, l.contact_name, l.x_giro_empresa, l.email_from, l.phone, l.state_id, 
-               l.user_id, l.x_user_seg, l.x_inductor, l.x_cerrador, l.x_giros, 
-               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.date_last_stage_update, 'YYYY-MM-DD'), 
-               l.x_fuentecontacto, l.expected_revenue, st.name, 
+               l.x_asociado, l.x_generador, l.x_inductor, l.x_cerrador, l.x_linea_negocio, 
+               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.write_date, 'YYYY-MM-DD'), 
+               l.source_id, l.expected_revenue, s.name, 
                CASE l.x_priority 
                    WHEN '0' THEN 'Sin prioridad' 
                    WHEN '1' THEN 'Baja' 
@@ -229,10 +254,10 @@ def get_leads():
         FROM crm_lead l
         LEFT JOIN res_users u ON u.id = l.user_id
         LEFT JOIN res_partner p ON p.id = u.partner_id
-        LEFT JOIN crm_stage st ON st.id = l.stage_id
-        WHERE COALESCE(p.name, 'Sin asignar') = %s
-        AND {filtro_sql} = %s AND l.active = TRUE
+        LEFT JOIN crm_stage s ON s.id = l.stage_id
+        WHERE {where_clause} AND {filtro_sql} = %s AND l.active = TRUE
     """
+
     rows = fetch_data(query, (user, valor))
 
     if not rows:
