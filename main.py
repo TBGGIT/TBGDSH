@@ -146,36 +146,41 @@ def dashboard():
 
             Chart.register(ChartDataLabels);
 
+            function setupClickHandler(chart, canvasId) {{
+                document.getElementById(canvasId).onclick = function(evt) {{
+                    const points = chart.getElementsAtEventForMode(evt, 'nearest', {{ intersect: true }}, true);
+                    if (points.length) {{
+                        const index = points[0].index;
+                        const label = chart.data.labels[index].split(' (')[0];
+                        fetch('/leads?user=' + encodeURIComponent(label))
+                            .then(response => response.text())
+                            .then(html => {{
+                                document.getElementById('leadsContainer').innerHTML = "<h3>Leads de " + label + "</h3>" + html;
+                            }});
+                    }}
+                }};
+            }}
+
             const chartAnual = new Chart(document.getElementById('chartAnual').getContext('2d'), {{
                 type: 'pie',
                 data: {{ labels: {json.dumps(labels_anual)}, datasets: [{{ data: {json.dumps(values_anual)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
+            setupClickHandler(chartAnual, 'chartAnual');
 
-            new Chart(document.getElementById('chartMes').getContext('2d'), {{
+            const chartMes = new Chart(document.getElementById('chartMes').getContext('2d'), {{
                 type: 'pie',
                 data: {{ labels: {json.dumps(labels_mensual)}, datasets: [{{ data: {json.dumps(values_mensual)}, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
+            setupClickHandler(chartMes, 'chartMes');
 
-            new Chart(document.getElementById('chartSemana').getContext('2d'), {{
+            const chartSemana = new Chart(document.getElementById('chartSemana').getContext('2d'), {{
                 type: 'doughnut',
                 data: {{ labels: {json.dumps(labels_semanal)}, datasets: [{{ data: {json.dumps(values_semanal)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-
-            document.getElementById('chartAnual').onclick = function(evt) {{
-                const points = chartAnual.getElementsAtEventForMode(evt, 'nearest', {{ intersect: true }}, true);
-                if (points.length) {{
-                    const index = points[0].index;
-                    const label = chartAnual.data.labels[index].split(' (')[0];
-                    fetch('/leads?user=' + encodeURIComponent(label))
-                        .then(response => response.text())
-                        .then(html => {{
-                            document.getElementById('leadsContainer').innerHTML = "<h3>Leads de " + label + "</h3>" + html;
-                        }});
-                }}
-            }};
+            setupClickHandler(chartSemana, 'chartSemana');
 
             let segundos = {segundos_restantes};
             const cuenta = document.getElementById('cuenta');
