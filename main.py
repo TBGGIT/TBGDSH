@@ -4,7 +4,12 @@ from datetime import datetime, timedelta
 import calendar
 import locale
 
-locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')  # Nombres en español en sistemas compatibles
+#locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')  # Nombres en español en sistemas compatibles
+try:
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except locale.Error:
+    locale.setlocale(locale.LC_TIME, '')
+
 
 app = Flask(__name__)
 
