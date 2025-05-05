@@ -74,14 +74,15 @@ def dashboard():
     labels_semanal, values_semanal = build_label_with_priorities(semana_actual, "DATE_PART('week', l.create_date)")
     labels_anual, values_anual = build_label_with_priorities(anio_actual, "DATE_PART('year', l.create_date)")
 
-    return f'''
+    import json
+    return f"""
     <!DOCTYPE html>
-    <html lang="es">
+    <html lang='es'>
     <head>
-        <meta charset="UTF-8">
+        <meta charset='UTF-8'>
         <title>DASHBOARD FOR</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+        <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+        <script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2'></script>
         <style>
             body {{ background-color: #111; color: white; font-family: Arial; text-align: center; }}
             .chart-row {{ display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }}
@@ -92,105 +93,105 @@ def dashboard():
         </style>
     </head>
     <body>
-        <img class="logo" src="https://forhumancapital.mx/wp-content/uploads/2025/01/FORLOGOTRANSPARENTwhite.png" alt="Logo FOR">
+        <img class='logo' src='https://forhumancapital.mx/wp-content/uploads/2025/01/FORLOGOTRANSPARENTwhite.png' alt='Logo FOR'>
         <h1>DASHBOARD FOR</h1>
-        <div class="header-info">
+        <div class='header-info'>
             <p><strong>{fecha_actual}</strong></p>
-            <p><span id="cuenta">00:00:00</span></p>
+            <p><span id='cuenta'>00:00:00</span></p>
         </div>
 
-        <div class="chart-row">
-            <div id="leadsContainer" style="margin-top:40px; text-align:left; padding:20px;"></div>
-            <div class="chart-container">
+        <div class='chart-row'>
+            <div id='leadsContainer' style='margin-top:40px; text-align:left; padding:20px;'></div>
+            <div class='chart-container'>
                 <h2>Leads Activos por Usuario ({anio_actual})
                     <select onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio=' + this.value">
                         {options_anio}
                     </select>
                 </h2>
-                <canvas id="chartAnual"></canvas>
+                <canvas id='chartAnual'></canvas>
             </div>
 
-            <div class="chart-container">
+            <div class='chart-container'>
                 <h2>Leads Activos por Usuario ({nombre_mes})
-                    <select id="selectMes" onchange="location.href='/?mes=' + this.value + '&semana={semana_actual}&anio={anio_actual}'">
+                    <select id='selectMes' onchange="location.href='/?mes=' + this.value + '&semana={semana_actual}&anio={anio_actual}'">
                         {options_mes}
                     </select>
                 </h2>
-                <canvas id="chartMes"></canvas>
+                <canvas id='chartMes'></canvas>
             </div>
 
-            <div class="chart-container">
+            <div class='chart-container'>
                 <h2>Leads Activos por Usuario (Semana {semana_actual})
-                    <select id="selectSemana" onchange="location.href='/?mes={mes_actual}&semana=' + this.value + '&anio={anio_actual}'">
+                    <select id='selectSemana' onchange="location.href='/?mes={mes_actual}&semana=' + this.value + '&anio={anio_actual}'">
                         {options_semana}
                     </select>
                 </h2>
-                <canvas id="chartSemana"></canvas>
+                <canvas id='chartSemana'></canvas>
             </div>
         </div>
 
         <script>
-            const chartOptions = {
-                plugins: {
-                    legend: { labels: { color: 'white' } },
-                    datalabels: {
+            const chartOptions = {{
+                plugins: {{
+                    legend: {{ labels: {{ color: 'white' }} }},
+                    datalabels: {{
                         color: 'white',
-                        font: { weight: 'bold' },
+                        font: {{ weight: 'bold' }},
                         formatter: (value, context) => context.chart.data.labels[context.dataIndex],
                         align: 'center',
                         anchor: 'center'
-                    }
-                }
-            };
+                    }}
+                }}
+            }};
 
             Chart.register(ChartDataLabels);
 
-            const chartAnual = new Chart(document.getElementById('chartAnual').getContext('2d'), {
+            const chartAnual = new Chart(document.getElementById('chartAnual').getContext('2d'), {{
                 type: 'pie',
-                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
+                data: {{ labels: {json.dumps(labels_anual)}, datasets: [{{ data: {json.dumps(values_anual)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
-            });
+            }});
 
-            new Chart(document.getElementById('chartMes').getContext('2d'), {
+            new Chart(document.getElementById('chartMes').getContext('2d'), {{
                 type: 'pie',
-                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
+                data: {{ labels: {json.dumps(labels_mensual)}, datasets: [{{ data: {json.dumps(values_mensual)}, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
-            });
+            }});
 
-            new Chart(document.getElementById('chartSemana').getContext('2d'), {
+            new Chart(document.getElementById('chartSemana').getContext('2d'), {{
                 type: 'doughnut',
-                data: { labels: %s, datasets: [{ data: %s, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }] },
+                data: {{ labels: {json.dumps(labels_semanal)}, datasets: [{{ data: {json.dumps(values_semanal)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
-            });
+            }});
 
-            document.getElementById('chartAnual').onclick = function(evt) {
-                const points = chartAnual.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-                if (points.length) {
+            document.getElementById('chartAnual').onclick = function(evt) {{
+                const points = chartAnual.getElementsAtEventForMode(evt, 'nearest', {{ intersect: true }}, true);
+                if (points.length) {{
                     const index = points[0].index;
                     const label = chartAnual.data.labels[index].split(' (')[0];
                     fetch('/leads?user=' + encodeURIComponent(label))
                         .then(response => response.text())
-                        .then(html => {
+                        .then(html => {{
                             document.getElementById('leadsContainer').innerHTML = "<h3>Leads de " + label + "</h3>" + html;
-                        });
-                }
-            };
+                        }});
+                }}
+            }};
 
-            let segundos = %s;
+            let segundos = {segundos_restantes};
             const cuenta = document.getElementById('cuenta');
-            setInterval(() => {
-                if (segundos > 0) {
+            setInterval(() => {{
+                if (segundos > 0) {{
                     let hrs = String(Math.floor(segundos / 3600)).padStart(2, '0');
                     let mins = String(Math.floor((segundos % 3600) / 60)).padStart(2, '0');
                     let secs = String(segundos % 60).padStart(2, '0');
-                    cuenta.innerText = `${hrs}:${mins}:${secs}`;
+                    cuenta.innerText = `${{hrs}}:${{mins}}:${{secs}}`;
                     segundos--;
-                } else { cuenta.innerText = "00:00:00"; }
-            }, 1000);
+                }} else {{ cuenta.innerText = "00:00:00"; }}
+            }}, 1000);
         </script>
     </body>
     </html>
-    ''' % (labels_anual, values_anual, labels_mensual, values_mensual, labels_semanal, values_semanal, segundos_restantes)
+    """
 
 @app.route('/leads')
 def get_leads():
