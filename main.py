@@ -49,13 +49,12 @@ def dashboard():
     options_mes = ''.join([f'<option value="{i}" {"selected" if i == mes_actual else ""}>{calendar.month_name[i].capitalize()}</option>' for i in range(1, 13)])
     options_semana = ''.join([f'<option value="{i}" {"selected" if i == semana_actual else ""}>{i}</option>' for i in range(1, 54)])
     options_anio = ''.join([f'<option value="{y}" {"selected" if y == anio_actual else ""}>{y}</option>' for y in range(now.year - 5, now.year + 1)])
+    options_agrupador = (
+        f'<option value="usuario" {"selected" if agrupador == "usuario" else ""}>Por Usuario</option>'
+        + f'<option value="etapa" {"selected" if agrupador == "etapa" else ""}>Por Etapa</option>'
+    )
+    print("AGRUPADOR OPTIONS:", options_agrupador)
 
-    options_agrupador = f'''
-        <label for="selectAgrupador">Agrupar por:</label>
-        <select id="selectAgrupador" onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio={anio_actual}&agrupador=' + this.value">
-            <option value="usuario" {'selected' if agrupador == 'usuario' else ''}>Por Usuario</option>
-            <option value="etapa" {'selected' if agrupador == 'etapa' else ''}>Por Etapa</option>
-        </select>'''
 
     def build_label_with_priorities(periodo_value, periodo_expr):
         if agrupador == 'usuario':
@@ -101,7 +100,7 @@ def dashboard():
     <html lang='es'>
     <head>
         <meta charset='UTF-8'>
-        <title>DASHBOARD FOR</title>
+        <title>DASHBOARD FOR Human Capital</title>
         <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
         <script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2'></script>
         <style>
@@ -115,7 +114,22 @@ def dashboard():
         </style>
     </head>
     <body>
+    <body>
+    <div style='margin: 20px; text-align: left;'>
+        <label for='selectAgrupador'><strong>Agrupar por:</strong></label>
+        <select id="selectAgrupador" onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio={anio_actual}&agrupador=' + this.value">
+            {options_agrupador}
+        </select>
+    </div>
+
+    
         <img class='logo' src='https://forhumancapital.mx/wp-content/uploads/2025/01/FORLOGOTRANSPARENTwhite.png' alt='Logo FOR'>
+        <div style='margin: 20px;'>
+            <label for='selectAgrupador'><strong>Agrupar por:</strong></label>
+            <select id="selectAgrupador" onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio={anio_actual}&agrupador=' + this.value">
+                {options_agrupador}
+            </select>
+        </div>        
         <h1>DASHBOARD FOR</h1>
         <div class='header-info'>
             <p><strong>{fecha_actual}</strong></p>
@@ -125,7 +139,8 @@ def dashboard():
         <div class='chart-row'>
             <div class='chart-container'>
                 <h2>Leads Activos por Usuario ({anio_actual})
-                    <select onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio=' + this.value">
+                    <select onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio=' + this.value + '&agrupador={agrupador}'">
+
                         {options_anio}
                     </select>
                 </h2>
@@ -134,7 +149,7 @@ def dashboard():
 
             <div class='chart-container'>
                 <h2>Leads Activos por Usuario ({nombre_mes})
-                    <select id='selectMes' onchange="location.href='/?mes=' + this.value + '&semana={semana_actual}&anio={anio_actual}'">
+                    <select id='selectMes' onchange="location.href='/?mes=' + this.value + '&semana={semana_actual}&anio={anio_actual}&agrupador={agrupador}'">
                         {options_mes}
                     </select>
                 </h2>
@@ -143,7 +158,8 @@ def dashboard():
 
             <div class='chart-container'>
                 <h2>Leads Activos por Usuario (Semana {semana_actual})
-                    <select id='selectSemana' onchange="location.href='/?mes={mes_actual}&semana=' + this.value + '&anio={anio_actual}'">
+                    <select id='selectSemana' onchange="location.href='/?mes={mes_actual}&semana=' + this.value + '&anio={anio_actual}&agrupador={agrupador}'">
+
                         {options_semana}
                     </select>
                 </h2>
@@ -154,6 +170,7 @@ def dashboard():
         <div id='leadsContainer'></div>
 
         <script>
+            const agrupador = "{agrupador}";
             const chartOptions = {{
                 plugins: {{
                     legend: {{ labels: {{ color: 'white' }} }},
@@ -169,13 +186,13 @@ def dashboard():
 
             Chart.register(ChartDataLabels);
 
-            function setupClickHandler(chart, canvasId, filtro, valor) {{
+            function setupClickHandler(chart, canvasId, filtro, valor, agrupador) {{
                 document.getElementById(canvasId).onclick = function(evt) {{
                     const points = chart.getElementsAtEventForMode(evt, 'nearest', {{ intersect: true }}, true);
                     if (points.length) {{
                         const index = points[0].index;
                         const label = chart.data.labels[index].split(' (')[0];
-                        const url = `/leads?user=${{encodeURIComponent(label)}}&filtro=${{filtro}}&valor=${{valor}}`;
+                        const url = `/leads?user=${{encodeURIComponent(label)}}&filtro=${{filtro}}&valor=${{valor}}&agrupador=${{agrupador}}`;
                         fetch(url)
                             .then(response => response.text())
                             .then(html => {{
@@ -185,26 +202,27 @@ def dashboard():
                 }};
             }}
 
+
             const chartAnual = new Chart(document.getElementById('chartAnual').getContext('2d'), {{
                 type: 'pie',
                 data: {{ labels: {json.dumps(labels_anual)}, datasets: [{{ data: {json.dumps(values_anual)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartAnual, 'chartAnual', 'anio', {anio_actual});
+            setupClickHandler(chartAnual, 'chartAnual', 'anio', {anio_actual}, agrupador);
 
             const chartMes = new Chart(document.getElementById('chartMes').getContext('2d'), {{
                 type: 'pie',
                 data: {{ labels: {json.dumps(labels_mensual)}, datasets: [{{ data: {json.dumps(values_mensual)}, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartMes, 'chartMes', 'mes', {mes_actual});
+            setupClickHandler(chartMes, 'chartMes', 'mes', {mes_actual}, agrupador);
 
             const chartSemana = new Chart(document.getElementById('chartSemana').getContext('2d'), {{
                 type: 'doughnut',
                 data: {{ labels: {json.dumps(labels_semanal)}, datasets: [{{ data: {json.dumps(values_semanal)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartSemana, 'chartSemana', 'semana', {semana_actual});
+            setupClickHandler(chartSemana, 'chartSemana', 'semana', {semana_actual}, agrupador);
 
             let segundos = {segundos_restantes};
             const cuenta = document.getElementById('cuenta');
@@ -245,9 +263,9 @@ def get_leads():
 
     query = f"""
         SELECT l.name, l.partner_name, l.contact_name, l.x_giro_empresa, l.email_from, l.phone, l.state_id, 
-               l.x_asociado, l.x_generador, l.x_inductor, l.x_cerrador, l.x_linea_negocio, 
-               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.write_date, 'YYYY-MM-DD'), 
-               l.source_id, l.expected_revenue, s.name, 
+               p.name AS asociado, l.x_user_seg, l.x_inductor, l.x_cerrador, l.x_giros, 
+               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.date_last_stage_update, 'YYYY-MM-DD'), 
+               l.x_fuentecontacto, l.expected_revenue, s.name, 
                CASE l.x_priority 
                    WHEN '0' THEN 'Sin prioridad' 
                    WHEN '1' THEN 'Baja' 
@@ -297,7 +315,8 @@ def get_leads():
     html += "</tbody></table>"
     return html
 
+# --- EJECUCIÓN LOCAL ---
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 7000))
     app.run(host="0.0.0.0", port=port)
