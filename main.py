@@ -1,3 +1,4 @@
+# --- INICIO DEL CÓDIGO ---
 from flask import Flask, request
 import psycopg2
 from datetime import datetime, timedelta
@@ -28,6 +29,7 @@ def fetch_data(query, params=None):
     conn.close()
     return results
 
+# --- RUTA PRINCIPAL DEL DASHBOARD ---
 @app.route('/')
 def dashboard():
     now = datetime.now()
@@ -49,6 +51,7 @@ def dashboard():
     options_anio = ''.join([f'<option value="{y}" {"selected" if y == anio_actual else ""}>{y}</option>' for y in range(now.year - 5, now.year + 1)])
 
     options_agrupador = f'''
+        <label for="selectAgrupador">Agrupar por:</label>
         <select id="selectAgrupador" onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio={anio_actual}&agrupador=' + this.value">
             <option value="usuario" {'selected' if agrupador == 'usuario' else ''}>Por Usuario</option>
             <option value="etapa" {'selected' if agrupador == 'etapa' else ''}>Por Etapa</option>
