@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import calendar
 import locale
 
-#locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')  # Nombres en español en sistemas compatibles
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 except locale.Error:
@@ -90,6 +89,7 @@ def dashboard():
             .header-info {{ margin: 20px; }}
             img.logo {{ width: 120px; margin-top: 10px; }}
             #cuenta {{ font-size: 5em; color: red; font-family: 'Courier New', monospace; }}
+            #leadsContainer {{ margin-top: 40px; padding: 20px; text-align: left; width: 90%; margin-left: auto; margin-right: auto; }}
         </style>
     </head>
     <body>
@@ -101,7 +101,6 @@ def dashboard():
         </div>
 
         <div class='chart-row'>
-            <div id='leadsContainer' style='margin-top:40px; text-align:left; padding:20px;'></div>
             <div class='chart-container'>
                 <h2>Leads Activos por Usuario ({anio_actual})
                     <select onchange="location.href='/?mes={mes_actual}&semana={semana_actual}&anio=' + this.value">
@@ -130,6 +129,8 @@ def dashboard():
             </div>
         </div>
 
+        <div id='leadsContainer'></div>
+
         <script>
             const chartOptions = {{
                 plugins: {{
@@ -146,13 +147,14 @@ def dashboard():
 
             Chart.register(ChartDataLabels);
 
-            function setupClickHandler(chart, canvasId) {{
+            function setupClickHandler(chart, canvasId, filtro, valor) {{
                 document.getElementById(canvasId).onclick = function(evt) {{
                     const points = chart.getElementsAtEventForMode(evt, 'nearest', {{ intersect: true }}, true);
                     if (points.length) {{
                         const index = points[0].index;
                         const label = chart.data.labels[index].split(' (')[0];
-                        fetch('/leads?user=' + encodeURIComponent(label))
+                        const url = `/leads?user=${{encodeURIComponent(label)}}&filtro=${{filtro}}&valor=${{valor}}`;
+                        fetch(url)
                             .then(response => response.text())
                             .then(html => {{
                                 document.getElementById('leadsContainer').innerHTML = "<h3>Leads de " + label + "</h3>" + html;
@@ -166,21 +168,21 @@ def dashboard():
                 data: {{ labels: {json.dumps(labels_anual)}, datasets: [{{ data: {json.dumps(values_anual)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartAnual, 'chartAnual');
+            setupClickHandler(chartAnual, 'chartAnual', 'anio', {anio_actual});
 
             const chartMes = new Chart(document.getElementById('chartMes').getContext('2d'), {{
                 type: 'pie',
                 data: {{ labels: {json.dumps(labels_mensual)}, datasets: [{{ data: {json.dumps(values_mensual)}, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartMes, 'chartMes');
+            setupClickHandler(chartMes, 'chartMes', 'mes', {mes_actual});
 
             const chartSemana = new Chart(document.getElementById('chartSemana').getContext('2d'), {{
                 type: 'doughnut',
                 data: {{ labels: {json.dumps(labels_semanal)}, datasets: [{{ data: {json.dumps(values_semanal)}, backgroundColor: ['#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40'], borderColor: 'black', borderWidth: 1 }}] }},
                 options: chartOptions
             }});
-            setupClickHandler(chartSemana, 'chartSemana');
+            setupClickHandler(chartSemana, 'chartSemana', 'semana', {semana_actual});
 
             let segundos = {segundos_restantes};
             const cuenta = document.getElementById('cuenta');
@@ -201,14 +203,27 @@ def dashboard():
 @app.route('/leads')
 def get_leads():
     user = request.args.get('user')
-    query = """
+    filtro = request.args.get('filtro')
+    valor = request.args.get('valor')
+
+    filtro_sql = {
+        'mes': "DATE_PART('month', l.create_date)",
+        'semana': "DATE_PART('week', l.create_date)",
+        'anio': "DATE_PART('year', l.create_date)"
+    }.get(filtro)
+
+    if not filtro_sql:
+        return "<p>Filtro inválido.</p>"
+
+    query = f"""
         SELECT l.name, l.contact_name, l.email_from
         FROM crm_lead l
         LEFT JOIN res_users u ON u.id = l.user_id
         LEFT JOIN res_partner p ON p.id = u.partner_id
-        WHERE COALESCE(p.name, 'Sin asignar') = %s AND l.active = TRUE
+        WHERE COALESCE(p.name, 'Sin asignar') = %s
+        AND {filtro_sql} = %s AND l.active = TRUE
     """
-    rows = fetch_data(query, (user,))
+    rows = fetch_data(query, (user, valor))
     html = "<ul>"
     for name, contact, email in rows:
         html += f"<li><strong>{name}</strong> — {contact or 'Sin contacto'} — {email or 'Sin email'}</li>"
