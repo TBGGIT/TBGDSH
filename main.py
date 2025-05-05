@@ -216,18 +216,57 @@ def get_leads():
         return "<p>Filtro inválido.</p>"
 
     query = f"""
-        SELECT l.name, l.contact_name, l.email_from
+        SELECT l.name, l.partner_name, l.contact_name, l.x_sector, l.email_from, l.phone, l.state_id, 
+               l.x_asociado, l.x_generador, l.x_inductor, l.x_cerrador, l.x_linea_negocio, 
+               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.write_date, 'YYYY-MM-DD'), 
+               l.source_id, l.expected_revenue, st.name, 
+               CASE l.x_priority 
+                   WHEN '0' THEN 'Sin prioridad' 
+                   WHEN '1' THEN 'Baja' 
+                   WHEN '2' THEN 'Media' 
+                   WHEN '3' THEN 'Alta' 
+                   ELSE 'N/A' END
         FROM crm_lead l
         LEFT JOIN res_users u ON u.id = l.user_id
         LEFT JOIN res_partner p ON p.id = u.partner_id
+        LEFT JOIN crm_stage st ON st.id = l.stage_id
         WHERE COALESCE(p.name, 'Sin asignar') = %s
         AND {filtro_sql} = %s AND l.active = TRUE
     """
     rows = fetch_data(query, (user, valor))
-    html = "<ul>"
-    for name, contact, email in rows:
-        html += f"<li><strong>{name}</strong> — {contact or 'Sin contacto'} — {email or 'Sin email'}</li>"
-    html += "</ul>" if rows else "<p>No hay leads disponibles.</p>"
+
+    if not rows:
+        return "<p>No hay leads disponibles.</p>"
+
+    html = """
+    <table border='1' cellpadding='5' cellspacing='0' style='width:100%; background:white; color:black;'>
+        <thead>
+            <tr>
+                <th>Oportunidad</th>
+                <th>Empresa</th>
+                <th>Contacto</th>
+                <th>Giro</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Asociado</th>
+                <th>Generador</th>
+                <th>Inductor</th>
+                <th>Cerrador</th>
+                <th>Línea de Negocio</th>
+                <th>Alta</th>
+                <th>Últ. Etapa</th>
+                <th>Fuente</th>
+                <th>Ingreso Esperado</th>
+                <th>Etapa</th>
+                <th>Prioridad</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    for row in rows:
+        html += "<tr>" + "".join(f"<td>{col or ''}</td>" for col in row) + "</tr>"
+    html += "</tbody></table>"
     return html
 
 if __name__ == '__main__':
