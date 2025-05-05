@@ -216,10 +216,10 @@ def get_leads():
         return "<p>Filtro inválido.</p>"
 
     query = f"""
-        SELECT l.name, l.partner_name, l.contact_name, l.x_sector, l.email_from, l.phone, l.state_id, 
-               l.x_asociado, l.x_generador, l.x_inductor, l.x_cerrador, l.x_linea_negocio, 
-               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.write_date, 'YYYY-MM-DD'), 
-               l.source_id, l.expected_revenue, st.name, 
+        SELECT l.name, l.partner_name, l.contact_name, l.x_giro_empresa, l.email_from, l.phone, l.state_id, 
+               l.user_id, l.x_user_seg, l.x_inductor, l.x_cerrador, l.x_giros, 
+               TO_CHAR(l.create_date, 'YYYY-MM-DD'), TO_CHAR(l.date_last_stage_update, 'YYYY-MM-DD'), 
+               l.x_fuentecontacto, l.expected_revenue, st.name, 
                CASE l.x_priority 
                    WHEN '0' THEN 'Sin prioridad' 
                    WHEN '1' THEN 'Baja' 
