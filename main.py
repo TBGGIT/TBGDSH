@@ -31,7 +31,9 @@ def dashboard():
     mes_actual = int(request.args.get('mes', now.month))
     semana_actual = int(request.args.get('semana', now.isocalendar()[1]))
     anio_actual = int(request.args.get('anio', now.year))
-    nombre_mes = calendar.month_name[mes_actual].capitalize()
+    from babel.dates import format_date
+    nombre_mes = format_date(now, "LLLL", locale='es')
+
     fecha_actual = now.strftime(f"%Y - {nombre_mes} - %d")
 
     dias_hasta_sabado = (5 - now.weekday()) % 7
